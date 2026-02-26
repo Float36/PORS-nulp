@@ -105,40 +105,48 @@ def save_output(data, filename="output_data.json"):
 
 # Функція для запуску
 def run_experiment(size):
-    #generate_data(size)
+    generate_data(size)  # Генеруємо дані один раз
     data = load_data()
-    N_CHUNKS = 8  # Кількість частин/потоків
 
-    # 1. Послідовно (повний масив)
+    # 1. Послідовно (повний масив) - виконуємо ОДИН раз для бази порівняння
     data_seq = data.copy()
     start = time.perf_counter()
     selection_sort(data_seq)
     time_full_seq = time.perf_counter() - start
-    print(f"1. Послідовно (метод вибору) (1 потік): {time_full_seq:.4f} сек")
+    print(f"Послідовно (1 потік): {time_full_seq:.4f} сек")
 
-    # 2. Послідовно (частинами)
-    data_chunks_seq = data.copy()
-    start = time.perf_counter()
-    sequential_chunks_sort(data_chunks_seq, num_chunks=N_CHUNKS)
-    time_chunks_seq = time.perf_counter() - start
-    print(f"2. Частинами послідовно ({N_CHUNKS} частини, 1 потік): {time_chunks_seq:.4f} сек")
+    # Список кількості потоків для тестування
+    thread_counts = [2, 4, 8, 64]
 
-    # 3. Паралельно (потоками)
-    data_par = data.copy()
-    start = time.perf_counter()
-    result_par = threaded_selection_sort(data_par, num_threads=N_CHUNKS)
-    time_threaded = time.perf_counter() - start
-    print(f"3. Частинами в потоках ({N_CHUNKS} частини, {N_CHUNKS} потоки): {time_threaded:.4f} сек")
-    save_output(result_par)
+    for n in thread_counts:
+        print(f"\n>>> ТЕСТ ДЛЯ {n} ПОТОКІВ / ЧАСТИН:")
 
-    # АНАЛІЗ
-    alg_gain = time_full_seq / time_chunks_seq
-    hw_gain = time_chunks_seq / time_threaded
+        # 2. Послідовно (частинами)
+        data_chunks_seq = data.copy()
+        start = time.perf_counter()
+        sequential_chunks_sort(data_chunks_seq, num_chunks=n)
+        time_chunks_seq = time.perf_counter() - start
+        print(f"2. Частинами послідовно ({n} частини, 1 потік): {time_chunks_seq:.4f} сек")
 
-    print()
-    print(f"Алгоритмічний приріст (від поділу масиву): {alg_gain:.2f}x")
-    print(f"Апаратний приріст (multithreading): {hw_gain:.2f}x")
+        # 3. Паралельно (потоками)
+        data_par = data.copy()
+        start = time.perf_counter()
+        result_par = threaded_selection_sort(data_par, num_threads=n)
+        time_threaded = time.perf_counter() - start
+        print(f"3. Частинами в потоках ({n} частини, {n} потоки): {time_threaded:.4f} сек")
+
+        # АНАЛІЗ для поточної кількості потоків
+        alg_gain = time_full_seq / time_chunks_seq
+        hw_gain = time_chunks_seq / time_threaded
+        total_gain = time_full_seq / time_threaded
+
+        print(f"   - Алгоритмічний приріст: {alg_gain:.2f}x")
+        print(f"   - Апаратний приріст: {hw_gain:.2f}x")
+        print(f"   - ЗАГАЛЬНЕ ПРИСКОРЕННЯ: {total_gain:.2f}x")
+
+    save_output(data_par)
+
 
 if __name__ == "__main__":
-    N = 21000
+    N = 30000
     run_experiment(N)
