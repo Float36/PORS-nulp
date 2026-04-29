@@ -1,19 +1,36 @@
-photos_storage = []
-_id_counter = 1
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.app.core.db.repositories import PhotoRepository
+from src.app.schemas.photo import PhotoCreate, PhotoUpdate
+
 
 class CRUDPhoto:
-    def create_for_ad(self, ad_id: int):
-        global _id_counter
-        new_photo = {
-            "id": _id_counter,
-            "ad_id": ad_id,
-            "url": f"https://storage.lostfound.com/ads/{ad_id}/photo_{_id_counter}.jpg"
+    def __init__(self, session: AsyncSession) -> None:
+        self.repository = PhotoRepository(session)
+
+    async def get_all(self):
+        photos = await self.repository.get_all()
+        return [self._to_response(item) for item in photos]
+
+    async def get_by_id(self, photo_id: int):
+        photo = await self.repository.get_by_id(photo_id)
+        return self._to_response(photo) if photo else None
+
+    async def create(self, obj_in: PhotoCreate):
+        photo = await self.repository.create(obj_in)
+        return self._to_response(photo)
+
+    async def update(self, photo_id: int, obj_in: PhotoUpdate):
+        photo = await self.repository.update(photo_id, obj_in)
+        return self._to_response(photo) if photo else None
+
+    async def delete(self, photo_id: int) -> bool:
+        return await self.repository.delete(photo_id)
+
+    @staticmethod
+    def _to_response(photo):
+        return {
+            "id": photo.id,
+            "url": photo.url,
+            "ad_id": photo.ad_id,
         }
-        photos_storage.append(new_photo)
-        _id_counter += 1
-        return new_photo
-
-    def get_by_ad(self, ad_id: int):
-        return [p for p in photos_storage if p["ad_id"] == ad_id]
-
-photo_service = CRUDPhoto()

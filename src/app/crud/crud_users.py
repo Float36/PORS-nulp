@@ -1,23 +1,66 @@
-from src.app.schemas.user import UserCreate
+from sqlalchemy.ext.asyncio import AsyncSession
 
-
-users_storage = []
-_id_counter = 1
+from src.app.core.db.repositories import UserRepository
+from src.app.schemas.user import UserCreate, UserUpdate
 
 
 class CRUDUsers:
-    def get_all(self):
-        return users_storage
+    def __init__(self, session: AsyncSession) -> None:
+        self.repository = UserRepository(session)
 
-    def get_by_id(self, user_id: int):
-        return next((user for user in users_storage if user["id"] == user_id), None)
+    async def get_all(self):
+        users = await self.repository.get_all()
+        return [self._to_response(user) for user in users]
 
-    def create(self, obj_in: UserCreate):
-        global _id_counter
-        # Modeling DB behavior
-        new_user = {**obj_in.model_dump(), "id": _id_counter}
-        users_storage.append(new_user)
-        _id_counter += 1
-        return new_user
+    async def list_users(
+        self,
+        *,
+        skip: int,
+        limit: int,
+        role: str | None,
+        is_verified: bool | None,
+        sort_by: str,
+        sort_order: str,
+    ) -> dict:
+        users, total = await self.repository.list_users(
+            skip=skip,
+            limit=limit,
+            role=role,
+            is_verified=is_verified,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        return {
+            "items": [self._to_response(user) for user in users],
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+        }
 
-user_service = CRUDUsers()
+    async def get_by_id(self, user_id: int):
+        user = await self.repository.get_by_id(user_id)
+        if not user:
+            return None
+        return self._to_response(user)
+
+    async def create(self, obj_in: UserCreate):
+        user = await self.repository.create(obj_in)
+        return self._to_response(user)
+
+    async def update(self, user_id: int, obj_in: UserUpdate):
+        user = await self.repository.update(user_id, obj_in)
+        return self._to_response(user) if user else None
+
+    async def delete(self, user_id: int) -> bool:
+        return await self.repository.delete(user_id)
+
+    @staticmethod
+    def _to_response(user):
+        return {
+            "id": user.user_id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role,
+            "is_verified": user.is_verified,
+        }

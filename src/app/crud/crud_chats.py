@@ -1,42 +1,34 @@
-from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 
-chats_storage = []
-messages_storage = []
-_chat_id_gen = 1
-_msg_id_gen = 1
+from src.app.core.db.repositories import ChatRepository
+
 
 class CRUDChat:
-    def create_chat(self, ad_id: int, initiator_id: int):
-        global _chat_id_gen
-        new_chat = {
-            "id": _chat_id_gen,
-            "ad_id": ad_id,
-            "initiator_id": initiator_id,
-            "created_at": datetime.now()
+    def __init__(self, session: AsyncSession) -> None:
+        self.repository = ChatRepository(session)
+
+    async def create_chat(self, ad_id: int, initiator_id: int):
+        chat = await self.repository.create_chat(ad_id=ad_id, initiator_id=initiator_id)
+        return {
+            "id": chat.chat_id,
+            "ad_id": chat.ad_id,
+            "initiator_id": chat.initiator_id,
+            "created_at": chat.created_at,
+            "messages": [],
         }
-        chats_storage.append(new_chat)
-        _chat_id_gen += 1
-        return new_chat
 
-    def add_message(self, chat_id: int, sender_id: int, content: str):
-        global _msg_id_gen
-        new_msg = {
-            "id": _msg_id_gen,
-            "chat_id": chat_id,
-            "sender_id": sender_id,
-            "content": content,
-            "timestamp": datetime.now()
+    async def add_message(self, chat_id: int, sender_id: int, content: str):
+        message = await self.repository.add_message(chat_id=chat_id, sender_id=sender_id, content=content)
+        return {
+            "id": message.msg_id,
+            "chat_id": message.chat_id,
+            "sender_id": message.sender_id,
+            "content": message.content,
+            "timestamp": message.timestamp,
         }
-        messages_storage.append(new_msg)
-        _msg_id_gen += 1
-        return new_msg
 
-    def get_chat_history(self, chat_id: int):
-        chat = next((c for c in chats_storage if c["id"] == chat_id), None)
-        if chat:
-            chat_copy = chat.copy()
-            chat_copy["messages"] = [m for m in messages_storage if m["chat_id"] == chat_id]
-            return chat_copy
-        return None
+    async def get_chat_history(self, chat_id: int):
+        return await self.repository.get_chat_history(chat_id)
 
-chat_service = CRUDChat()
+    async def delete_chat(self, chat_id: int) -> bool:
+        return await self.repository.delete_chat(chat_id)

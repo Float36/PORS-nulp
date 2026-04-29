@@ -1,27 +1,13 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
-
-class MessageBase(BaseModel):
-    content: str = Field(..., min_length=1, max_length=1000, description="Message text")
-
-class MessageCreate(MessageBase):
-    sender_id: int
-
-class MessageResponse(MessageBase):
-    id: int
-    sender_id: int
-    timestamp: datetime
-
-    class Config:
-        from_attributes = True
-
+from pydantic import BaseModel, Field
+from src.app.schemas.message import MessageResponse
 
 
 class ChatBase(BaseModel):
     ad_id: int
-    initiator_id: int
+    initiator_id: Optional[int] = None
 
 class ChatCreate(ChatBase):
     pass
@@ -29,7 +15,7 @@ class ChatCreate(ChatBase):
 class ChatResponse(ChatBase):
     id: int
     created_at: datetime
-    messages: List[MessageResponse] = []
+    messages: list[MessageResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

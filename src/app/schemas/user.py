@@ -18,9 +18,25 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
 
+
+class UserUpdate(BaseModel):
+    email: EmailStr | None = None
+    password: str | None = Field(default=None, min_length=8)
+    first_name: str | None = None
+    last_name: str | None = None
+    role: UserRole | None = None
+    is_verified: bool | None = None
+
+
 class UserResponse(UserBase):
     id: int
-    is_verified: bool = False
 
     class Config:
         from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    items: list[UserResponse]
+    total: int
+    skip: int
+    limit: int
