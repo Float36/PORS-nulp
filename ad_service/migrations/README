@@ -1,0 +1,6 @@
+Generic single-database configuration for the ad_service.
+
+Run from the ad_service directory:
+
+    alembic revision --autogenerate -m "init ads schema"
+    alembic upgrade head

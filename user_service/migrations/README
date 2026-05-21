@@ -1,0 +1,6 @@
+Generic single-database configuration for the user_service.
+
+Run from the user_service directory:
+
+    alembic revision --autogenerate -m "init users schema"
+    alembic upgrade head
