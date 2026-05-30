@@ -1,0 +1,93 @@
+services:
+  db_user:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: lostfound_users_db
+    volumes:
+      - db_user_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lostfound_users_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  db_ad:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: lostfound_ads_db
+    volumes:
+      - db_ad_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lostfound_ads_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis_cache:
+    image: redis:alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  user_service:
+    build: ./user_service
+    ports:
+      - "8000:8000"
+    environment:
+      PROJECT_NAME: Lost&Found User Service
+      API_V1_STR: /api/v1
+      HOST: 0.0.0.0
+      PORT: 8000
+      POSTGRES_HOST: db_user
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: lostfound_users_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      DB_ECHO: "false"
+    depends_on:
+      db_user:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  ad_service:
+    build: ./ad_service
+    ports:
+      - "8001:8001"
+    environment:
+      PROJECT_NAME: Lost&Found Ad Service
+      API_V1_STR: /api/v1
+      HOST: 0.0.0.0
+      PORT: 8001
+      POSTGRES_HOST: db_ad
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: lostfound_ads_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      DB_ECHO: "false"
+      REDIS_URL: redis://redis_cache:6379/0
+      USER_SERVICE_BASE_URL: http://user_service:8000
+    depends_on:
+      db_ad:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+      user_service:
+        condition: service_started
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8001"
+
+volumes:
+  db_user_data:
+  db_ad_data:

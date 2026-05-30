@@ -1,8 +1,10 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi_cache.decorator import cache
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import ad_by_id_key_builder, invalidate_ad_cache
 from app.core.db.database import get_db_session
 from app.crud.crud_ads import CRUDAd
 from app.schemas.ad import AdCreate, AdListResponse, AdResponse, AdUpdate
@@ -39,6 +41,7 @@ async def list_ads(
 
 
 @router.get("/{ad_id}", response_model=AdResponse)
+@cache(expire=60, key_builder=ad_by_id_key_builder)
 async def get_ad_by_id(ad_id: int, session: AsyncSession = Depends(get_db_session)):
     """Get ad by id."""
     ad_service = CRUDAd(session)
@@ -68,6 +71,7 @@ async def update_ad(ad_id: int, ad_in: AdUpdate, session: AsyncSession = Depends
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ad with ID {ad_id} not found",
         )
+    await invalidate_ad_cache(ad_id)
     return ad
 
 
@@ -81,3 +85,4 @@ async def delete_ad(ad_id: int, session: AsyncSession = Depends(get_db_session))
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ad with ID {ad_id} not found",
         )
+    await invalidate_ad_cache(ad_id)

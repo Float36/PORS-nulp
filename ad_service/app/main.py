@@ -1,13 +1,18 @@
 import logging
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis import asyncio as aioredis
 from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1 import ads, categories, chats, messages, photos
+from app.core.cache import ad_by_id_key_builder
 from app.core.config import settings
 from app.core.exceptions import (
     http_exception_handler,
@@ -22,9 +27,30 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    redis = aioredis.from_url(settings.REDIS_URL, decode_responses=False)
+    FastAPICache.init(
+        RedisBackend(redis),
+        prefix="ad-service-cache",
+        key_builder=ad_by_id_key_builder,
+    )
+    logger.info("Redis cache initialized at %s", settings.REDIS_URL)
+    try:
+        yield
+    finally:
+        await redis.aclose()
+        FastAPICache.reset()
+        logger.info("Redis cache connection closed")
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
