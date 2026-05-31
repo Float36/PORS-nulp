@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-ad
+  labels:
+    app: postgres-ad
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-ad
+  template:
+    metadata:
+      labels:
+        app: postgres-ad
+    spec:
+      containers:
+        - name: postgres
+          image: postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: admin
+            - name: POSTGRES_DB
+              value: lostfound_ads_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ad
+  labels:
+    app: postgres-ad
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres-ad
+  ports:
+    - port: 5432
+      targetPort: 5432

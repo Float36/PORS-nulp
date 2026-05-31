@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-user
+  labels:
+    app: postgres-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-user
+  template:
+    metadata:
+      labels:
+        app: postgres-user
+    spec:
+      containers:
+        - name: postgres
+          image: postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: admin
+            - name: POSTGRES_DB
+              value: lostfound_users_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-user
+  labels:
+    app: postgres-user
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres-user
+  ports:
+    - port: 5432
+      targetPort: 5432
